@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - Static
+  - Dynamic
+  - Crosshair
+  - UI
+  - Objective
+  - Weapon
+  - Highlight
+  - Icon
+  - Emitter
+  - Target
+  - MenuFrame
+  - MenuPanel
+  - MenuButton
+  - Health
+  - Energy
+  - Bar
+  - Pickup
+  - Boundary
+  - Breakable
+  - Barrier
+  - Win
+  - Lose
+  - Rubble
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
