@@ -392,7 +392,7 @@ public class Player : CoreFunc
     // Handles the over-time decrease of the Energy resource.
     private void EnergyDrain()
     {
-        if (energyCurrent > 0)
+        /*if (energyCurrent > 0)
         {
             int energyPrevious = energyCurrent;
             if (energyDrainTimer >= energyDrainInterval)
@@ -402,7 +402,7 @@ public class Player : CoreFunc
                 UpdateBar(false, energyPrevious, energyCurrent, energyMax);
             }
             energyDrainTimer += Time.deltaTime;
-        }
+        }*/
     }
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

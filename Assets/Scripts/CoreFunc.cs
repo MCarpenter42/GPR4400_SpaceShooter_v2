@@ -58,6 +58,8 @@ public class CoreFunc : MonoBehaviour
 
     };
 
+    public enum directions { xPos = 1, yPos = 2, zPos = 3, xNeg = -1, yNeg = -2, zNed = -3 };
+
     public void Pause()
     {
         if (playerHandler != null)
@@ -120,6 +122,90 @@ public class CoreFunc : MonoBehaviour
     public static float ToDeg(float radians)
     {
         return radians * 180.0f / Mathf.PI;
+    }
+
+    public static int ToInt(bool intBool)
+    {
+        if (intBool)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    public static bool ToBool(int boolInt)
+    {
+        if (boolInt > 0)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public static string[] StopwatchTime(float time)
+    {
+        int seconds = (int)Mathf.FloorToInt(time);
+        int subSeconds = (int)Mathf.Floor((time - seconds) * 100.0f);
+
+        int tMinutes = seconds - seconds % 60;
+        int tSeconds = seconds % 60;
+
+        string strMinutes = tMinutes.ToString();
+        string strSeconds = tSeconds.ToString();
+        string strSubSecs = subSeconds.ToString();
+
+        if (strSeconds.Length < 2)
+        {
+            strSeconds = "0" + strSeconds;
+        }
+        if (strSubSecs.Length < 2)
+        {
+            strSubSecs = "0" + strSubSecs;
+        }
+
+        return new string[] { strMinutes, strSeconds, strSubSecs };
+    }
+
+    // This is just to make it easier to generate random integers
+    public static int RandomInt(int valMin, int valMax)
+    {
+        float r = Random.Range(valMin, valMax + 1);
+        int i = Mathf.FloorToInt(r);
+        if (i > valMax)
+        {
+            i = valMax;
+        }
+        return i;
+    }
+
+    public static bool InBounds<T>(int index, T[] array)
+    {
+        if (index > -1 && index < array.Length)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public static bool InBounds<T>(int index, List<T> list)
+    {
+        if (index > -1 && index < list.Count)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     // I makes lists of children with a specific component often enough that
