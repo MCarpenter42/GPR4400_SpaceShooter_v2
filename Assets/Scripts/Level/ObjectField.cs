@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEditor;
 
-public class ObjectField
+public class ObjectField : CoreFunc
 {
     public bool[,,] checks { get; private set; }
     public GameObject[,,] objects { get; private set; }
@@ -46,6 +46,11 @@ public class ObjectField
     {
         checks[arrayX, arrayY, arrayZ] = check;
     }
+    
+    public void SetCheck(bool check, int[] arrayPos)
+    {
+        checks[arrayPos[0], arrayPos[1], arrayPos[2]] = check;
+    }
 
     public void SetCheck(bool check, Vector3 position)
     {
@@ -68,35 +73,84 @@ public class ObjectField
 
     public void SetObject(GameObject obj, int arrayX, int arrayY, int arrayZ)
     {
-        objects[arrayX, arrayY, arrayZ] = obj;
+        if (obj != null)
+        {
+            objects[arrayX, arrayY, arrayZ] = obj;
 
-        obj.transform.position = VectorFromArrayPosition(arrayX, arrayY, arrayZ);
+            obj.transform.position = VectorFromArrayPosition(arrayX, arrayY, arrayZ);
+        }
+        else
+        {
+            if (objects[arrayX, arrayY, arrayZ] != null)
+            {
+                Destroy(objects[arrayX, arrayY, arrayZ]);
+            }
+            objects[arrayX, arrayY, arrayZ] = null;
+        }
+    }
+    
+    public void SetObject(GameObject obj, int[] arrayPos)
+    {
+        if (obj != null)
+        {
+            objects[arrayPos[0], arrayPos[1], arrayPos[2]] = obj;
+
+            obj.transform.position = VectorFromArrayPosition(arrayPos[0], arrayPos[1], arrayPos[2]);
+        }
+        else
+        {
+            if (objects[arrayPos[0], arrayPos[1], arrayPos[2]] != null)
+            {
+                Destroy(objects[arrayPos[0], arrayPos[1], arrayPos[2]]);
+            }
+            objects[arrayPos[0], arrayPos[1], arrayPos[2]] = null;
+        }
     }
     
     public void SetObject(GameObject obj, Vector3 position)
     {
         int[] arrayPos = ArrayPositionFromVector(position);
 
-        for (int i = 0; i < 3; i++)
+        if (obj != null)
         {
-            if (arrayPos[i] < 0)
+            bool invalidPos = false;
+            for (int i = 0; i < 3; i++)
             {
-                arrayPos[i] = 0;
+                if (arrayPos[i] < 0)
+                {
+                    invalidPos = true;
+                }
+                else if (arrayPos[i] > fieldWidth - 1)
+                {
+                    invalidPos = true;
+                }
             }
-            else if (arrayPos[i] > fieldWidth - 1)
+
+            if (!invalidPos)
             {
-                arrayPos[i] = fieldWidth - 1;
+                objects[arrayPos[0], arrayPos[1], arrayPos[2]] = obj;
+
+                obj.transform.position = VectorFromArrayPosition(arrayPos[0], arrayPos[1], arrayPos[2]);
             }
         }
-
-        objects[arrayPos[0], arrayPos[1], arrayPos[2]] = obj;
-
-        obj.transform.position = VectorFromArrayPosition(arrayPos[0], arrayPos[1], arrayPos[2]);
+        else
+        {
+            if (objects[arrayPos[0], arrayPos[1], arrayPos[2]] != null)
+            {
+                Destroy(objects[arrayPos[0], arrayPos[1], arrayPos[2]]);
+            }
+            objects[arrayPos[0], arrayPos[1], arrayPos[2]] = null;
+        }
     }
 
     public GameObject GetObject(int arrayX, int arrayY, int arrayZ)
     {
         return objects[arrayX, arrayY, arrayZ];
+    }
+    
+    public GameObject GetObject(int[] arrayPos)
+    {
+        return objects[arrayPos[0], arrayPos[1], arrayPos[2]];
     }
 
     public bool CheckObject(int arrayX, int arrayY, int arrayZ)
@@ -108,6 +162,18 @@ public class ObjectField
         else
         {
             return checks[arrayX, arrayY, arrayZ];
+        }
+    }
+    
+    public bool CheckObject(int[] arrayPos)
+    {
+        if (arrayPos[0] < 0 || arrayPos[0] > checks.GetLength(0) - 1 || arrayPos[1] < 0 || arrayPos[1] > checks.GetLength(1) - 1 || arrayPos[2] < 0 || arrayPos[2] > checks.GetLength(2) - 1)
+        {
+            return false;
+        }
+        else
+        {
+            return checks[arrayPos[0], arrayPos[1], arrayPos[2]];
         }
     }
 
@@ -186,6 +252,16 @@ public class ObjectField
         pos[0] += (float)arrayX * objectSpacing - halfWidth;
         pos[1] += (float)arrayY * objectSpacing - halfWidth;
         pos[2] += (float)arrayZ * objectSpacing - halfWidth;
+        return pos;
+    }
+
+    public Vector3 VectorFromArrayPosition(int[] arrayPos)
+    {
+        float halfWidth = ((float)(fieldWidth - 1) / 2.0f) * objectSpacing;
+        Vector3 pos = fieldCentrepoint;
+        pos[0] += (float)arrayPos[0] * objectSpacing - halfWidth;
+        pos[1] += (float)arrayPos[1] * objectSpacing - halfWidth;
+        pos[2] += (float)arrayPos[2] * objectSpacing - halfWidth;
         return pos;
     }
 }

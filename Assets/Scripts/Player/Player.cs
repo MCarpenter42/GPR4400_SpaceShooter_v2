@@ -11,12 +11,12 @@ public class Player : CoreFunc
     #region [ PARAMETERS ]
 
     // CAMERA
+    [Header("Camera")]
+    [SerializeField] float deadzoneScale = 1.0f;
+    private float deadzoneSize;
 
     private Camera mainCam;
     private Vector3 screenCentre;
-
-    [SerializeField] float deadzoneScale = 1.0f;
-    private float deadzoneSize;
 
     // UI
 
@@ -25,13 +25,16 @@ public class Player : CoreFunc
     private GameObject crosshair_Static;
     private GameObject crosshair_Dynamic;
 
+    [Header("UI")]
     [SerializeField] Indicator indSprint;
     [SerializeField] Indicator indRotLock;
+    [SerializeField] TextMeshProUGUI enemyCounter;
 
     // MOVEMENT
 
     private Rigidbody rb;
 
+    [Header("Movement")]
     [SerializeField] float maxMoveSpeed = 1.0f;
     private float moveForceFactor = 2.5f;
     private Vector3 movementInput = new Vector3();
@@ -42,6 +45,7 @@ public class Player : CoreFunc
 
     // STEERING & AIMING
 
+    [Header("Steering & Aiming")]
     [SerializeField] float maxRotSpeed = 1.0f;
     [SerializeField] float aimRotFactor = 0.3f;
     [SerializeField] bool invertPitch = false;
@@ -58,47 +62,51 @@ public class Player : CoreFunc
 
     // WEAPONS
 
+    [Header("Weapons")]
+    [SerializeField] GameObject laser;
+    [SerializeField] float fireRate = 4.0f;
     private List<GameObject> weapons = new List<GameObject>();
     private List<GameObject> weaponEmitters = new List<GameObject>();
-    [SerializeField] GameObject laser;
+    private bool weaponsOnCooldown = false;
 
     // RESOURCES
 
     private int healthMax = 20;
     private int healthCurrent;
+    private bool collisionDamageImmune = false;
 
-    private int energyMax = 50;
-    private int energyCurrent;
-    [SerializeField] float energyDrainInterval;
-    private float energyDrainTimer = 0.0f;
+    private int ammoMax = 10;
+    private int ammoCurrent;
+    [Header("Ammo")]
+    [SerializeField] float ammoRegenRate = 2.5f;
+    private Coroutine ammoRegen;
 
     private GameObject barHealth;
     private Vector3 barHealth_nmSize;
     private Vector3 barHealth_nmPos;
 
-    private GameObject barEnergy;
-    private Vector3 barEnergy_nmSize;
-    private Vector3 barEnergy_nmPos;
+    private GameObject barAmmo;
+    private Vector3 barAmmo_nmSize;
+    private Vector3 barAmmo_nmPos;
 
     // LEVEL
 
-    private List<GameObject> powerCells = new List<GameObject>();
-    private int cellCount;
-    private int cellsObtained = 0;
+    private int enemyCount;
+    private int enemiesLeft;
 
-    [SerializeField] TextMeshProUGUI cellCounter;
-
+    [Header("Level")]
     [SerializeField] GameEnd gameEndHandler;
 
     // AUDIO
 
+    [Header("Audio")]
     [SerializeField] AudioSource thrustersSFX;
-    float thrustPitch_Idle = 1.4f;
-    float thrustPitchUp_Normal = 0.5f;
-    float thrustPitchUp_Sprint = 0.9f;
-    float thrustVolume_Idle = 0.05f;
-    float thrustVolumeUp_Normal = 0.03f;
-    float thrustVolumeUp_Sprint = 0.02f;
+    private float thrustPitch_Idle = 1.4f;
+    private float thrustPitchUp_Normal = 0.5f;
+    private float thrustPitchUp_Sprint = 0.9f;
+    private float thrustVolume_Idle = 0.05f;
+    private float thrustVolumeUp_Normal = 0.03f;
+    private float thrustVolumeUp_Sprint = 0.02f;
 
     [SerializeField] AudioSource collisionsSFX;
     [SerializeField] AudioClip collisionSlow;
@@ -141,7 +149,7 @@ public class Player : CoreFunc
     {
         GetWeapons();
         ResetResources();
-        GetCells();
+        UpdateEnemyCount();
     }
 
     void Update()
@@ -152,11 +160,7 @@ public class Player : CoreFunc
             Steering();
             Movement();
             Shooting();
-            EnergyDrain();
-            if (healthCurrent == 0 || energyCurrent == 0)
-            {
-                gameEndHandler.EndGame(false);
-            }
+            CheckAmmo();
         }
     }
 
@@ -178,13 +182,14 @@ public class Player : CoreFunc
     {
         if (fixedUpdateVel.magnitude > dangerSpeed)
         {
-            if (!collision.gameObject.CompareTag("Boundary"))
+            if (!collision.gameObject.CompareTag("Boundary") && !collision.gameObject.CompareTag("Projectile") && !collisionDamageImmune)
             {
                 TakeDamage(1);
+                StartCoroutine(CollisionDamageImmunity());
             }
         }
 
-        if (!collision.gameObject.CompareTag("Boundary"))
+        if (!collision.gameObject.CompareTag("Boundary") && !collision.gameObject.CompareTag("Projectile"))
         {
             CollisionSound(collision.gameObject, fixedUpdateVel.magnitude);
         }
@@ -241,10 +246,10 @@ public class Player : CoreFunc
         barHealth_nmSize = barHealth.GetComponent<RectTransform>().sizeDelta;
         barHealth_nmPos = barHealth.transform.localPosition;
 
-        barEnergy = GameObject.FindGameObjectWithTag("Energy");
-        barEnergy = GetChildrenWithTag(barEnergy, "Bar")[0];
-        barEnergy_nmSize = barEnergy.GetComponent<RectTransform>().sizeDelta;
-        barEnergy_nmPos = barEnergy.transform.localPosition;
+        barAmmo = GameObject.FindGameObjectWithTag("Energy");
+        barAmmo = GetChildrenWithTag(barAmmo, "Bar")[0];
+        barAmmo_nmSize = barAmmo.GetComponent<RectTransform>().sizeDelta;
+        barAmmo_nmPos = barAmmo.transform.localPosition;
     }
 
     // Retrieves references for the weapon child objects.
@@ -279,28 +284,13 @@ public class Player : CoreFunc
         }
     }
 
-    // Retrieves information about the power cell pickups.
-    private void GetCells()
-    {
-        GameObject[] pickups = GameObject.FindGameObjectsWithTag("Pickup");
-        foreach (GameObject item in pickups)
-        {
-            if ((int)item.GetComponent<Pickup>().type == 0)
-            {
-                powerCells.Add(item);
-            }
-        }
-        cellCount = powerCells.Count;
-        UpdateCellCount();
-    }
-
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
     // Resets Health and Energy, and their associated bars.
     private void ResetResources()
     {
         healthCurrent = healthMax;
-        energyCurrent = energyMax;
+        ammoCurrent = ammoMax;
         ResetBar(true);
         ResetBar(false);
     }
@@ -334,6 +324,10 @@ public class Player : CoreFunc
             float rotScaleYaw = adjustedCursorPos[0] / (screenCentre[0] - deadzoneSize);
 
             rotScaleVector = new Vector3(rotScalePitch, rotScaleYaw, 0.0f);
+        }
+        else if (lockRot)
+        {
+            rotScaleVector = Vector3.zero;
         }
 
         PivotWeapons();
@@ -383,26 +377,29 @@ public class Player : CoreFunc
             TransitionFOV(fovNormal);
         }
 
-        if (Input.GetKeyDown(controls.action.fire))
+        if (Input.GetKey(controls.action.fire) && !weaponsOnCooldown && ammoCurrent > 0)
         {
             Fire();
         }
     }
 
-    // Handles the over-time decrease of the Energy resource.
-    private void EnergyDrain()
+    private void CheckAmmo()
     {
-        /*if (energyCurrent > 0)
+        if (!Input.GetKey(controls.action.fire) || ammoCurrent == 0)
         {
-            int energyPrevious = energyCurrent;
-            if (energyDrainTimer >= energyDrainInterval)
+            if (ammoCurrent < ammoMax && ammoRegen == null)
             {
-                energyCurrent -= 1;
-                energyDrainTimer = 0.0f;
-                UpdateBar(false, energyPrevious, energyCurrent, energyMax);
+                ammoRegen = StartCoroutine(AmmoRegen());
             }
-            energyDrainTimer += Time.deltaTime;
-        }*/
+        }
+        else
+        {
+            if (ammoRegen != null)
+            {
+                StopCoroutine(ammoRegen);
+                ammoRegen = null;
+            }
+        }
     }
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -542,7 +539,7 @@ public class Player : CoreFunc
         for (int i = 1; i <= aFrames; i++)
         {
             float delta = (float)i / (float)aFrames;
-            yield return new WaitForSeconds(0.004f);
+            yield return new WaitForSeconds(0.002f);
             mainCam.fieldOfView = Mathf.Lerp(fovStart, fovTarget, delta);
         }
     }
@@ -550,6 +547,7 @@ public class Player : CoreFunc
     // Handles weapon firing.
     private void Fire()
     {
+        weaponsOnCooldown = true;
         Vector3 pos = transform.position;
         Vector3 facing = AimVector(false);
         RaycastHit hit;
@@ -559,10 +557,15 @@ public class Player : CoreFunc
             Vector3 hitLocation = hit.point;
 
             GameObject hitObject = hit.collider.gameObject;
-            if (hitObject.CompareTag("Breakable"))
+            if (hitObject.CompareTag("Enemy"))
             {
-                Breakable breakObj = hitObject.GetComponent<Breakable>();
-                breakObj.Break(hitLocation);
+                EnemyDrone enemy = hitObject.GetComponent<EnemyDrone>();
+                bool enemyKilled = enemy.TakeDamage(1);
+                if (enemyKilled)
+                {
+                    EnemyKilled();
+                    hitObject.GetComponent<Rigidbody>().AddExplosionForce(15.0f, hitLocation, 7.0f, 0.0f, ForceMode.Impulse);
+                }
             }
 
             foreach (GameObject emitter in weaponEmitters)
@@ -581,6 +584,9 @@ public class Player : CoreFunc
             }
         }
         weaponsSFX.PlayOneShot(weaponFire);
+        ammoCurrent--;
+        UpdateBar(false, ammoCurrent + 1, ammoCurrent, ammoMax);
+        StartCoroutine(ShootCooldown());
     }
 
     // Instantiates a LineRenderer to represent a laser.
@@ -623,6 +629,24 @@ public class Player : CoreFunc
         Destroy(line);
     }
 
+    private IEnumerator ShootCooldown()
+    {
+        float cdTime = 1.0f / fireRate;
+        yield return new WaitForSeconds(cdTime);
+        weaponsOnCooldown = false;
+    }
+
+    private IEnumerator AmmoRegen()
+    {
+        float regenInterval = 1.0f / ammoRegenRate;
+        while (ammoCurrent < ammoMax)
+        {
+            yield return new WaitForSeconds(regenInterval);
+            ammoCurrent++;
+            UpdateBar(false, ammoCurrent - 1, ammoCurrent, ammoMax);
+        }
+    }
+
     // Handles taking damage.
     private void TakeDamage(int dmg)
     {
@@ -637,6 +661,23 @@ public class Player : CoreFunc
             healthCurrent = 0;
             UpdateBar(barHealth, healthPrevious, healthCurrent, healthMax);
         }
+
+        if (healthCurrent == 0)
+        {
+            gameEndHandler.EndGame(false);
+        }
+    }
+
+    public void HitByRocket(int dmg)
+    {
+        TakeDamage(dmg);
+    }
+
+    private IEnumerator CollisionDamageImmunity()
+    {
+        collisionDamageImmune = true;
+        yield return new WaitForSeconds(0.1f);
+        collisionDamageImmune = false;
     }
 
     // Updates one of the player's resources bars to display the correct value,
@@ -669,13 +710,13 @@ public class Player : CoreFunc
         }
         else
         {
-            Vector3 newSize = barEnergy_nmSize;
-            newSize[0] = barEnergy_nmSize[0] * scaleFactor;
-            barEnergy.GetComponent<RectTransform>().sizeDelta = newSize;
+            Vector3 newSize = barAmmo_nmSize;
+            newSize[0] = barAmmo_nmSize[0] * scaleFactor;
+            barAmmo.GetComponent<RectTransform>().sizeDelta = newSize;
             
-            Vector3 newPos = barEnergy.transform.localPosition;
-            newPos[0] += barEnergy_nmSize[0] * (valDif / valMax) * 0.5f;
-            barEnergy.transform.localPosition = newPos;
+            Vector3 newPos = barAmmo.transform.localPosition;
+            newPos[0] += barAmmo_nmSize[0] * (valDif / valMax) * 0.5f;
+            barAmmo.transform.localPosition = newPos;
         }
     }
 
@@ -693,8 +734,8 @@ public class Player : CoreFunc
         }
         else
         {
-            barEnergy.GetComponent<RectTransform>().sizeDelta = barEnergy_nmSize;
-            barEnergy.transform.localPosition = barEnergy_nmPos;
+            barAmmo.GetComponent<RectTransform>().sizeDelta = barAmmo_nmSize;
+            barAmmo.transform.localPosition = barAmmo_nmPos;
         }
     }
 
@@ -703,7 +744,7 @@ public class Player : CoreFunc
     {
         if (type == 0)
         {
-            int energyPrevious = energyCurrent;
+            /*int energyPrevious = energyCurrent;
             if (energyMax - energyCurrent >= power)
             {
                 energyCurrent += power;
@@ -714,7 +755,7 @@ public class Player : CoreFunc
             }
             cellsObtained += 1;
             UpdateCellCount();
-            UpdateBar(false, energyPrevious, energyCurrent, energyMax);
+            UpdateBar(false, energyPrevious, energyCurrent, energyMax);*/
             LevelSFX(0);
         }
         else if (type == 1)
@@ -724,11 +765,24 @@ public class Player : CoreFunc
         }
     }
 
-    // Updates the UI counter for how many power cells have been collected.
-    private void UpdateCellCount()
+    public void GetEnemyCount(int n)
     {
-        cellCounter.text = cellsObtained + " / " + cellCount;
-        if (cellsObtained == cellCount)
+        enemyCount = n;
+        enemiesLeft = n;
+    }
+
+    private void EnemyKilled()
+    {
+        enemiesLeft--;
+        UpdateEnemyCount();
+    }
+
+    // Updates the UI counter for how many power cells have been collected.
+    private void UpdateEnemyCount()
+    {
+        enemyCounter.text = enemiesLeft + " / " + enemyCount;
+
+        if (enemiesLeft == 0)
         {
             gameEndHandler.EndGame(true);
         }

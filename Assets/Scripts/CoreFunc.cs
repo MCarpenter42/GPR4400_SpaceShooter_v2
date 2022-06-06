@@ -18,6 +18,7 @@ public class CoreFunc : MonoBehaviour
     public static Keynames keynames = new Keynames();
 
     public static Player playerHandler;
+    public static EnemyController enemyHandler;
 
     public static Color[] clrList = new Color[]
     {
@@ -58,13 +59,17 @@ public class CoreFunc : MonoBehaviour
 
     };
 
-    public enum directions { xPos = 1, yPos = 2, zPos = 3, xNeg = -1, yNeg = -2, zNed = -3 };
+    public enum EnemyAIState { Idle, Patrolling, Alerted, Following, Attacking, Searching, Returning, Dead };
 
     public void Pause()
     {
         if (playerHandler != null)
         {
             playerHandler.OnPause();
+        }
+        if (enemyHandler != null)
+        {
+            enemyHandler.OnPause();
         }
         Time.timeScale = 0.0f;
         gameState.isPaused = true;
@@ -75,6 +80,10 @@ public class CoreFunc : MonoBehaviour
         if (playerHandler != null)
         {
             playerHandler.OnResume();
+        }
+        if (enemyHandler != null)
+        {
+            enemyHandler.OnResume();
         }
         Time.timeScale = 1.0f;
         gameState.isPaused = false;
@@ -135,6 +144,18 @@ public class CoreFunc : MonoBehaviour
             return 0;
         }
     }
+    
+    public static int ToInt(bool intBool, int trueVal, int falseVal)
+    {
+        if (intBool)
+        {
+            return trueVal;
+        }
+        else
+        {
+            return falseVal;
+        }
+    }
 
     public static bool ToBool(int boolInt)
     {
@@ -146,6 +167,45 @@ public class CoreFunc : MonoBehaviour
         {
             return false;
         }
+    }
+
+    public static Vector3 RestrictVectorBounds(Vector3 vect)
+    {
+        if (vect.x > 180.0f)
+        {
+            vect.x -= 360.0f;
+        }
+        else if (vect.x < -190.0f)
+        {
+            vect.x += 360.0f;
+        }
+        
+        if (vect.y > 180.0f)
+        {
+            vect.y -= 360.0f;
+        }
+        else if (vect.y < -190.0f)
+        {
+            vect.y += 360.0f;
+        }
+        
+        if (vect.z > 180.0f)
+        {
+            vect.z -= 360.0f;
+        }
+        else if (vect.z < -190.0f)
+        {
+            vect.z += 360.0f;
+        }
+
+        return vect;
+    }
+
+    public static float CosInterpDelta(float delta)
+    {
+        float rad = delta * Mathf.PI;
+        float cos = -Mathf.Cos(rad);
+        return (cos + 1.0f) * 0.5f;
     }
 
     public static string[] StopwatchTime(float time)
@@ -208,6 +268,14 @@ public class CoreFunc : MonoBehaviour
         }
     }
 
+    public static void ClearArray<T>(T[] array)
+    {
+        for (int i = 0; i < array.Length; i++)
+        {
+            array[i] = default(T);
+        }
+    }
+
     // I makes lists of children with a specific component often enough that
     // this was worth creating as a static function.
     public static List<GameObject> GetChildrenWithComponent<T>(GameObject parentObj)
@@ -246,8 +314,8 @@ public class CoreFunc : MonoBehaviour
         return childrenWithTag;
     }
 
-    // You'd be surprised how helpful it is to just be able to call an Image colour
-    // transition as a function from just about anywhere!
+    // You'd be surprised how helpful it is to just be able to call a colour transition
+    // as a function from just about anywhere!
     public Coroutine DoColourTransition(Image img, Color clrStart, Color clrEnd, float time, bool realTime)
     {
         return StartCoroutine(ColourTransition(img, clrStart, clrEnd, time, realTime));
@@ -277,6 +345,35 @@ public class CoreFunc : MonoBehaviour
         }
     }
 
+    public Coroutine DoColourTransition(Material mat, Color clrStart, Color clrEnd, float time, bool realTime)
+    {
+        return StartCoroutine(ColourTransition(mat, clrStart, clrEnd, time, realTime));
+    }
+
+    public IEnumerator ColourTransition(Material mat, Color clrStart, Color clrEnd, float time, bool realTime)
+    {
+        // I use this approach for consistent smoothing despite variable duration
+        // a lot - I pretty much just pick a "framerate", calculate how many frames
+        // are needed to achieve that, then calculate how long each frame needs to
+        // exist for to achieve the desired effect. And then, I Lerp.
+        int aFrames = (int)(100.0f * time);
+        float aFrameTime = time / (float)aFrames;
+
+        for (int i = 1; i <= aFrames; i++)
+        {
+            float delta = (float)i / (float)aFrames;
+            if (realTime)
+            {
+                yield return new WaitForSecondsRealtime(aFrameTime);
+            }
+            else
+            {
+                yield return new WaitForSeconds(aFrameTime);
+            }
+            mat.color = Color.Lerp(clrStart, clrEnd, delta);
+        }
+    }
+    
     // Similar deal to the colour transition function, but slightly different use-cases
     public Coroutine DoColourFlash(Image img, Color clrFlash, float time, bool vanishAfter, bool realTime)
     {
@@ -323,10 +420,59 @@ public class CoreFunc : MonoBehaviour
             img.gameObject.SetActive(false);
         }
     }
+    
+    public Coroutine DoColourFlash(Material mat, Color clrStart, Color clrFlash, float time, bool realTime)
+    {
+        return StartCoroutine(ColourFlash(mat, clrStart, clrFlash, time, realTime));
+    }
 
-    public static Color GetColor(int clrIndex)
+    public IEnumerator ColourFlash(Material mat, Color clrStart, Color clrFlash, float time, bool realTime)
+    {
+        int aFrames = (int)(100.0f * time);
+        float aFrameTime = time / (float)aFrames;
+        aFrames /= 2;
+
+        for (int i = 1; i <= aFrames; i++)
+        {
+            float delta = (float)i / (float)aFrames;
+            if (realTime)
+            {
+                yield return new WaitForSecondsRealtime(aFrameTime);
+            }
+            else
+            {
+                yield return new WaitForSeconds(aFrameTime);
+            }
+            mat.color = Color.Lerp(clrStart, clrFlash, delta);
+        }
+
+        for (int i = 1; i <= aFrames; i++)
+        {
+            float delta = (float)i / (float)aFrames;
+            if (realTime)
+            {
+                yield return new WaitForSecondsRealtime(aFrameTime);
+            }
+            else
+            {
+                yield return new WaitForSeconds(aFrameTime);
+            }
+            mat.color = Color.Lerp(clrFlash, clrStart, delta);
+        }
+    }
+
+    public static Color GetColour(int clrIndex)
     {
         return clrList[clrIndex];
+    }
+
+    public static Color ShiftColour(Color clr, float shift)
+    {
+        shift = Mathf.Clamp(shift, -1.0f, 1.0f);
+        float newR = clr.r + (shift * (1.0f - clr.r));
+        float newG = clr.g + (shift * (1.0f - clr.g));
+        float newB = clr.b + (shift * (1.0f - clr.b));
+        return new Color(newR, newG, newB, clr.a);
     }
 
 }

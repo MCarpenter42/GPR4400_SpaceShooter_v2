@@ -17,6 +17,9 @@ public class GameManager : CoreFunc
 
     public static bool isCursorLocked;
 
+    public static float FPS;
+    private List<float> frameTimes = new List<float>();
+
     #endregion
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -69,15 +72,42 @@ public class GameManager : CoreFunc
         OnStartDebugging();
     }
 
+    void Update()
+    {
+        CalcFPS();
+        OnUpdateDebugging();
+    }
+
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
     private void Setup()
     {
         playerHandler = GameObject.FindGameObjectWithTag("Player").GetComponent<Player>();
+        enemyHandler = FindObjectOfType<EnemyController>().GetComponent<EnemyController>();
+    }
+
+    private void CalcFPS()
+    {
+        if (frameTimes.Count >= 60)
+        {
+            frameTimes.RemoveAt(0);
+        }
+        frameTimes.Add(Time.deltaTime);
+        float total = 0.0f;
+        foreach (float f in frameTimes)
+        {
+            total += f;
+        }
+        FPS = (int)((float)frameTimes.Count / total);
     }
 
     private void OnStartDebugging()
     {
 
+    }
+
+    private void OnUpdateDebugging()
+    {
+        //Debug.Log(FPS);
     }
 }

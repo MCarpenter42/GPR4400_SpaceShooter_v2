@@ -73,7 +73,6 @@ public class PCG_Room : CoreFunc
                 {
                     obstructed.Add(i);
                 }
-                Debug.Log(CountAdjacent(arrayPos[0], arrayPos[1], arrayPos[2]));
             }
         }
 
@@ -96,13 +95,6 @@ public class PCG_Room : CoreFunc
             dirsRand.Add(avDirs[r]);
             avDirs.RemoveAt(r);
         }
-
-        /*string debug = null;
-        foreach (int i in dirsRand)
-        {
-            debug += i + " | ";
-        }
-        Debug.Log(debug);*/
 
         for (int i = 0; i < dirsRand.Count; i++)
         {
@@ -146,7 +138,7 @@ public class PCG_Room : CoreFunc
             switch (i)
             {
                 case 0:
-                    threshold = 0.05f;
+                    threshold = 0.02f;
                     break;
                     
                 case 1:
@@ -197,7 +189,7 @@ public class PCG_Room : CoreFunc
                 {
                     arrayPos[a] -= 1;
                 }
-                if (pcgController.rooms.CheckObject(arrayPos[0], arrayPos[1], arrayPos[2]))
+                if (pcgController.rooms.CheckObject(arrayPos))
                 {
                     adjacent++;
                 }
@@ -223,7 +215,7 @@ public class PCG_Room : CoreFunc
                 {
                     arrayPos[a] -= 1;
                 }
-                if (pcgController.rooms.CheckObject(arrayPos[0], arrayPos[1], arrayPos[2]))
+                if (pcgController.rooms.CheckObject(arrayPos))
                 {
                     adjacent++;
                 }

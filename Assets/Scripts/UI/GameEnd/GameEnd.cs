@@ -76,6 +76,28 @@ public class GameEnd : UI
     // Handles what happens on the game ending.
     public void EndGame(bool win)
     {
+        Debug.Log("Game over");
+        StartCoroutine(End(win));
+    }
+
+    public void EndToMenu()
+    {
+        gameState.gameEnded = false;
+        GoToScene(0);
+    }
+
+    public void EndToExit()
+    {
+        gameState.gameEnded = false;
+        Exit();
+    }
+
+    private IEnumerator End(bool win)
+    {
+        if (win)
+        {
+            yield return new WaitForSeconds(3.0f);
+        }
         Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
         Cursor.visible = true;
         Pause();
@@ -96,18 +118,6 @@ public class GameEnd : UI
         }
 
         gameState.gameEnded = true;
-    }
-
-    public void EndToMenu()
-    {
-        gameState.gameEnded = false;
-        GoToScene(0);
-    }
-
-    public void EndToExit()
-    {
-        gameState.gameEnded = false;
-        Exit();
     }
 
 }

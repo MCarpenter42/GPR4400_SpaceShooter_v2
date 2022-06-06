@@ -27,11 +27,15 @@ TagManager:
   - Win
   - Lose
   - Rubble
+  - Wall
+  - Enemy
+  - WorldSpace
+  - Projectile
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Walls
   - Water
   - UI
   - 
